@@ -24,10 +24,12 @@ export default function SignInPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [attempted, setAttempted] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) { setError("Please fill in all fields."); return; }
+    setAttempted(true);
+    if (!email || !password) { setError("Both email and password are required."); return; }
     setError("");
     setSuccess("");
     setLoading(true);
@@ -35,16 +37,14 @@ export default function SignInPage() {
     try {
       const loginResponse = await userLogin(email, password);
       const authToken = typeof loginResponse.token === "string" ? loginResponse.token.trim() : "";
+      const responseCode = Number(loginResponse.responseCode ?? 0);
+      const userPayload = loginResponse.responsResult;
 
-      if (!authToken) {
-        throw new Error("Login did not return an auth token.");
+      if (responseCode !== 200 || !authToken || !userPayload || typeof userPayload !== "object") {
+        throw new Error(loginResponse.responseMessage || loginResponse.message || "Login failed.");
       }
 
-      const userData =
-        loginResponse.responsResult ??
-        loginResponse.data ??
-        loginResponse.user ??
-        { email };
+      const userData = userPayload;
 
       localStorage.setItem("authToken", authToken);
       localStorage.setItem("admin_token", authToken);
@@ -162,20 +162,23 @@ export default function SignInPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5" data-testid="form-signin">
             <div>
-              <label className="block text-sm font-semibold text-foreground mb-2">Email address</label>
+              <label className="block text-sm font-semibold text-foreground mb-2">Email address <span className="text-red-600">*</span></label>
               <input
                 data-testid="input-email"
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="you@company.com"
-                className="w-full px-5 py-3.5 rounded-xl border-2 border-border focus:border-[#F7611E] focus:outline-none text-sm transition-colors bg-white"
+                className={`w-full px-5 py-3.5 rounded-xl border-2 focus:outline-none text-sm transition-colors bg-white ${
+                  attempted && !email ? "border-red-500 focus:border-red-600" : "border-border focus:border-[#F7611E]"
+                }`}
               />
+              {attempted && !email && <p className="text-red-600 text-xs mt-1">Email is required</p>}
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-semibold text-foreground">Password</label>
+                <label className="block text-sm font-semibold text-foreground">Password <span className="text-red-600">*</span></label>
                 <a href="#" className="text-xs text-[#F7611E] font-medium hover:underline">Forgot password?</a>
               </div>
               <div className="relative">
@@ -185,7 +188,9 @@ export default function SignInPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Enter your password"
-                  className="w-full px-5 py-3.5 pr-12 rounded-xl border-2 border-border focus:border-[#F7611E] focus:outline-none text-sm transition-colors bg-white"
+                  className={`w-full px-5 py-3.5 pr-12 rounded-xl border-2 focus:outline-none text-sm transition-colors bg-white ${
+                    attempted && !password ? "border-red-500 focus:border-red-600" : "border-border focus:border-[#F7611E]"
+                  }`}
                 />
                 <button
                   type="button"
@@ -196,6 +201,7 @@ export default function SignInPage() {
                   {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {attempted && !password && <p className="text-red-600 text-xs mt-1">Password is required</p>}
             </div>
 
             <div className="flex items-center gap-3">
@@ -215,8 +221,8 @@ export default function SignInPage() {
             <button
               data-testid="button-signin-submit"
               type="submit"
-              disabled={loading}
-              className="w-full gradient-bg text-white font-bold py-4 rounded-xl hover:shadow-xl hover:shadow-orange-500/30 transition-all disabled:opacity-70 flex items-center justify-center gap-2"
+              disabled={loading || !email || !password}
+              className="w-full gradient-bg text-white font-bold py-4 rounded-xl hover:shadow-xl hover:shadow-orange-500/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
             >
               {loading ? (
                 <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
