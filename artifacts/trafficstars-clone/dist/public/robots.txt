@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://dsp.adomobi.com/sitemap.xml
