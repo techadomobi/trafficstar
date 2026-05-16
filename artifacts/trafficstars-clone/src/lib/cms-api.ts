@@ -290,6 +290,8 @@ export const userSignup = (body: {
 export const userLogin = async (email: CmsValue, password: CmsValue) => {
   const response = await cmsRequest<LoginResponse>("/user/login", { method: "POST", body: { email, password } });
   const token = typeof response.token === "string" ? response.token.trim() : "";
+  const responseCode = Number(response.responseCode ?? 0);
+  const hasUserPayload = response.responsResult !== undefined && response.responsResult !== null;
   const failureMessage =
     response.responseMessage ??
     response.message ??
@@ -298,6 +300,8 @@ export const userLogin = async (email: CmsValue, password: CmsValue) => {
 
   const responseText = failureMessage.toLowerCase();
   const looksLikeFailure =
+    responseCode !== 200 ||
+    !hasUserPayload ||
     response.success === false ||
     response.status?.toLowerCase() === "error" ||
     response.status?.toLowerCase() === "failed" ||
