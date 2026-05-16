@@ -23,6 +23,20 @@ type CmsRequestOptions = {
   body?: Record<string, CmsValue>;
 };
 
+type LoginResponse = {
+  message?: string;
+  responseMessage?: string;
+  error?: string;
+  responseCode?: number;
+  success?: boolean;
+  status?: string;
+  token?: string;
+  adminId?: string;
+  responsResult?: Record<string, unknown>;
+  data?: Record<string, unknown>;
+  user?: Record<string, unknown>;
+};
+
 const getCmsBaseUrl = () =>
   (import.meta.env.VITE_CMS_API_BASE_URL ?? DEFAULT_CMS_BASE_URL).replace(/\/$/, "");
 
@@ -273,8 +287,28 @@ export const userSignup = (body: {
   fbclid?: CmsValue;
 }) => cmsRequest("/user/signup", { method: "POST", body });
 
-export const userLogin = (email: CmsValue, password: CmsValue) =>
-  cmsRequest("/user/login", { method: "POST", body: { email, password } });
+export const userLogin = async (email: CmsValue, password: CmsValue) => {
+  const response = await cmsRequest<LoginResponse>("/user/login", { method: "POST", body: { email, password } });
+  const token = typeof response.token === "string" ? response.token.trim() : "";
+  const failureMessage =
+    response.responseMessage ??
+    response.message ??
+    response.error ??
+    "Invalid email or password.";
+
+  const responseText = failureMessage.toLowerCase();
+  const looksLikeFailure =
+    response.success === false ||
+    response.status?.toLowerCase() === "error" ||
+    response.status?.toLowerCase() === "failed" ||
+    /invalid|unauthori[sz]ed|failed|denied|incorrect/.test(responseText);
+
+  if (looksLikeFailure || !token) {
+    throw new Error(failureMessage);
+  }
+
+  return response;
+};
 
 export const editProfile = (body: Record<string, CmsValue>) =>
   cmsRequest("/user/editProfile", { method: "POST", body });

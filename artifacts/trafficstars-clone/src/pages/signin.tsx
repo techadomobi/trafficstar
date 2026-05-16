@@ -33,19 +33,44 @@ export default function SignInPage() {
     setLoading(true);
 
     try {
-      await userLogin(email, password);
+      const loginResponse = await userLogin(email, password);
+      const authToken = typeof loginResponse.token === "string" ? loginResponse.token.trim() : "";
+
+      if (!authToken) {
+        throw new Error("Login did not return an auth token.");
+      }
+
+      const userData =
+        loginResponse.responsResult ??
+        loginResponse.data ??
+        loginResponse.user ??
+        { email };
+
+      localStorage.setItem("authToken", authToken);
+      localStorage.setItem("admin_token", authToken);
+      localStorage.setItem("user", JSON.stringify(userData));
+      localStorage.setItem("advertiserData", JSON.stringify(userData));
+      if (typeof loginResponse.adminId === "string" && loginResponse.adminId.trim()) {
+        localStorage.setItem("subadminId", loginResponse.adminId.trim());
+      }
+
       setSuccess("Login successful.");
       // After successful login, redirect to the AdoMobi dashboard app.
       // The URL can be overridden with Vite env var `VITE_ADOMOBI_URL`.
       try {
         // `import.meta.env` is available in Vite-built apps.
-        // Fallback to localhost:3000 where the Next.js app typically runs.
+        // Use an absolute URL for a separate dashboard project, or a path for a same-origin route.
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
-        const adomobiUrl = import.meta.env?.VITE_ADOMOBI_URL || "http://localhost:3000";
-        window.location.href = adomobiUrl;
+        const rawTarget = import.meta.env?.VITE_ADOMOBI_URL || "http://localhost:3000";
+        const adomobiUrl = /^https?:\/\//i.test(rawTarget)
+          ? rawTarget
+          : rawTarget.startsWith("/")
+            ? `${window.location.origin}${rawTarget}`
+            : `${window.location.origin}/${rawTarget}`;
+        window.location.assign(adomobiUrl);
       } catch (err) {
-        window.location.href = "http://localhost:3000";
+        window.location.assign("http://localhost:3000");
       }
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : "Unable to sign in right now.");
